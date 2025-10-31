@@ -1,0 +1,95 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Aruva 3D T-shirt Mockup</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body,html { margin:0; height:100%; background:#fff; font-family:sans-serif; }
+    #canvas-wrap { width:100%; height:70vh; }
+    #ui { padding:10px; display:flex; gap:10px; flex-wrap:wrap; }
+    .btn { padding:8px 12px; border-radius:6px; border:1px solid #ccc; background:#f7f7f7; cursor:pointer; }
+  </style>
+</head>
+<body>
+  <div id="canvas-wrap"></div>
+  <div id="ui">
+    <label>टी-शर्ट का रंग: <input id="colorPicker" type="color" value="#ffffff"></label>
+    <label class="btn">Print Upload करो<input id="fileInput" type="file" accept="image/*" style="display:none"></label>
+    <button id="clearPrint" class="btn">Print हटाओ</button>
+  </div>
+
+  <script src="https://unpkg.com/three@0.155.0/build/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.155.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://unpkg.com/three@0.155.0/examples/js/loaders/GLTFLoader.js"></script>
+
+  <script>
+    const MODEL_URL = 'your-model.glb'; // अपनी फाइल का नाम
+
+    const container = document.getElementById('canvas-wrap');
+    const scene = new THREE.Scene();
+    const renderer = new THREE.WebGLRenderer({ antialias:true, alpha:true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+
+    const camera = new THREE.PerspectiveCamera(40, container.clientWidth/container.clientHeight, 0.1, 1000);
+    camera.position.set(0, 1.4, 2.6);
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    // Light
+    const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
+    scene.add(light);
+
+    // Model load
+    const loader = new THREE.GLTFLoader();
+    let shirt = null;
+    loader.load(MODEL_URL, (gltf)=>{
+      shirt = gltf.scene;
+      scene.add(shirt);
+    });
+
+    // Color change
+    document.getElementById('colorPicker').addEventListener('input', e=>{
+      if(!shirt) return;
+      shirt.traverse(node=>{
+        if(node.isMesh && node.material) node.material.color.set(e.target.value);
+      });
+    });
+
+    // Print upload
+    document.getElementById('fileInput').addEventListener('change', e=>{
+      const file = e.target.files[0];
+      if(!file || !shirt) return;
+      const reader = new FileReader();
+      reader.onload = ev=>{
+        const tex = new THREE.TextureLoader().load(ev.target.result);
+        shirt.traverse(node=>{
+          if(node.isMesh && node.material) {
+            node.material.map = tex;
+            node.material.needsUpdate = true;
+          }
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // Print हटाओ
+    document.getElementById('clearPrint').addEventListener('click', ()=>{
+      if(!shirt) return;
+      shirt.traverse(node=>{
+        if(node.isMesh && node.material) {
+          node.material.map = null;
+          node.material.needsUpdate = true;
+        }
+      });
+    });
+
+    function animate(){
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
